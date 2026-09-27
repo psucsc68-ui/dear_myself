@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ถึงฉัน... ในวันที่ฝนตก — Dear Myself</title>
+    <meta name="description" content="พื้นที่ปลอดภัยสำหรับเขียนข้อความถึงตัวเอง ในวันที่ฝนตก ปล่อยความรู้สึกไปกับสายฝน">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Mitr:wght@200;300;400;500&family=Prompt:ital,wght@0,200;0,300;0,400;0,500;0,600;1,300&family=Noto+Serif+Thai:wght@300;400;500&display=swap" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <link rel="stylesheet" href="style.css">
+</head>
+<body id="appBody">
+
+    <!-- Rain Canvas -->
+    <canvas id="rainCanvas" class="rain-canvas"></canvas>
+
+    <!-- Ambient Blurs -->
+    <div class="ambient-blob blob-1"></div>
+    <div class="ambient-blob blob-2"></div>
+    <div class="ambient-blob blob-3"></div>
+
+    <!-- ============ HEADER ============ -->
+    <header id="mainHeader" class="header">
+        <div class="header-inner">
+            <div class="header-left">
+                <div class="logo-icon umbrella-float">
+                    <i class="fa-solid fa-umbrella"></i>
+                </div>
+                <div class="logo-text">
+                    <h1 class="logo-title">ถึงฉัน... ในวันที่ฝนตก</h1>
+                    <p class="logo-sub" id="greetingText">Dear Myself</p>
+                </div>
+            </div>
+
+            <div class="header-right">
+                <!-- Streak -->
+                <div class="streak-badge" id="streakBadge" title="จำนวนวันที่เขียนต่อเนื่อง">
+                    <i class="fa-solid fa-fire"></i>
+                    <span id="streakCount">0</span>
+                </div>
+
+                <!-- Dark Mode -->
+                <button id="darkModeBtn" class="header-btn" title="โหมดกลางคืน">
+                    <i class="fa-solid fa-moon" id="darkModeIcon"></i>
+                </button>
+
+                <!-- Sound Mixer -->
+                <button id="soundBtn" class="header-btn" title="เสียงบรรยากาศ">
+                    <i class="fa-solid fa-volume-xmark" id="soundIcon"></i>
+                    <span class="btn-label">เสียง</span>
+                </button>
+
+                <!-- Gallery -->
+                <button id="openGalleryBtn" class="header-btn primary-btn" title="คลังสายฝน">
+                    <i class="fa-solid fa-book-open"></i>
+                    <span class="btn-label">คลังสายฝน</span>
+                    <span class="badge" id="msgCountBadge">0</span>
+                </button>
+
+                <!-- Read Page -->
+                <a href="read.html" class="header-btn" title="อ่านข้อความ" style="text-decoration:none">
+                    <i class="fa-solid fa-glasses"></i>
+                    <span class="btn-label">อ่านข้อความ</span>
+                </a>
+
+                <!-- Stats -->
+                <button id="openStatsBtn" class="header-btn" title="สถิติอารมณ์">
+                    <i class="fa-solid fa-chart-pie"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ============ DAILY AFFIRMATION BANNER ============ -->
+    <div class="affirmation-banner" id="affirmationBanner">
+        <div class="affirmation-inner">
+            <i class="fa-solid fa-quote-left affirmation-icon"></i>
+            <p class="affirmation-text" id="affirmationText">ทุกวันมีเมฆ แต่ไม่ใช่ทุกวันที่ฝนตก</p>
+            <button class="affirmation-refresh" id="refreshAffirmation" title="เปลี่ยนคำคม">
+                <i class="fa-solid fa-arrows-rotate"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- ============ FALLING RAIN MESSAGES AREA ============ -->
+    <main id="rainContainer" class="rain-container"></main>
+
+    <!-- ============ COMPOSE FORM ============ -->
+    <div class="compose-area">
+        <div class="compose-card glass-card">
+            <!-- Writing Prompt -->
+            <div class="writing-prompt" id="writingPrompt">
+                <i class="fa-regular fa-lightbulb"></i>
+                <span id="promptText">ลองเขียนเรื่องที่อยากบอกตัวเองวันนี้...</span>
+                <button id="nextPromptBtn" class="prompt-refresh" title="เปลี่ยน prompt">
+                    <i class="fa-solid fa-shuffle"></i>
+                </button>
+            </div>
+
+            <form id="messageForm">
+                <div class="form-header">
+                    <label for="messageInput" class="form-label">
+                        <i class="fa-regular fa-pen-to-square"></i> เขียนข้อความถึงตัวเอง
+                    </label>
+                    <span class="char-count" id="charCount">0 / 200</span>
+                </div>
+
+                <textarea id="messageInput" rows="2" maxlength="200" required
+                    placeholder="วันนี้เหนื่อยไหม... กอดตัวเองนะ"></textarea>
+
+                <div class="form-footer">
+                    <!-- Mood Tags -->
+                    <div class="mood-tags" id="moodContainer"></div>
+
+                    <div class="form-actions">
+                        <!-- Bookmark toggle -->
+                        <button type="button" id="bookmarkToggle" class="bookmark-btn" title="บุ๊กมาร์ค">
+                            <i class="fa-regular fa-bookmark"></i>
+                        </button>
+                        <button type="submit" class="submit-btn">
+                            <i class="fa-solid fa-paper-plane"></i>
+                            <span>ปล่อยลงสายฝน</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ============ SOUND MIXER PANEL ============ -->
+    <div id="soundPanel" class="sound-panel hidden-panel">
+        <div class="sound-panel-card glass-card">
+            <div class="panel-header">
+                <h3><i class="fa-solid fa-headphones"></i> เสียงบรรยากาศ</h3>
+                <button id="closeSoundPanel" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="sound-sliders">
+                <div class="sound-slider-item">
+                    <div class="slider-label">
+                        <i class="fa-solid fa-cloud-rain"></i>
+                        <span>ฝนตก</span>
+                    </div>
+                    <input type="range" id="rainVolume" min="0" max="100" value="60" class="volume-slider">
+                    <span class="slider-val" id="rainVolVal">60%</span>
+                </div>
+                <div class="sound-slider-item">
+                    <div class="slider-label">
+                        <i class="fa-solid fa-bolt"></i>
+                        <span>ฟ้าร้อง</span>
+                    </div>
+                    <input type="range" id="thunderVolume" min="0" max="100" value="30" class="volume-slider">
+                    <span class="slider-val" id="thunderVolVal">30%</span>
+                </div>
+                <div class="sound-slider-item">
+                    <div class="slider-label">
+                        <i class="fa-solid fa-wind"></i>
+                        <span>ลมพัด</span>
+                    </div>
+                    <input type="range" id="windVolume" min="0" max="100" value="20" class="volume-slider">
+                    <span class="slider-val" id="windVolVal">20%</span>
+                </div>
+            </div>
+            <button id="toggleAllSound" class="toggle-sound-btn">
+                <i class="fa-solid fa-play"></i> เปิดเสียง
+            </button>
+        </div>
+    </div>
+
+    <!-- ============ READ MESSAGE MODAL ============ -->
+    <div id="readModal" class="modal-overlay hidden-modal">
+        <div class="modal-card glass-card read-modal-card" id="readModalCard">
+            <button id="closeModalBtn" class="modal-close"><i class="fa-solid fa-xmark"></i></button>
+
+            <div class="read-modal-header">
+                <div class="read-icon-wrap">
+                    <i class="fa-solid fa-umbrella"></i>
+                </div>
+                <div class="read-meta">
+                    <span id="modalMoodBadge" class="mood-badge-lg">🤍 กอดตัวเอง</span>
+                    <span id="modalTime" class="meta-time">เมื่อสักครู่นี้</span>
+                </div>
+            </div>
+
+            <div class="read-content-box">
+                <p id="modalContent" class="read-content-text">"ข้อความจะแสดงตรงนี้"</p>
+            </div>
+
+            <div class="read-actions">
+                <span class="read-actions-label"><i class="fa-solid fa-heart-pulse"></i> ข้อความปกป้องหัวใจ</span>
+                <div class="read-action-btns">
+                    <button id="bookmarkMsgBtn" class="action-btn" title="บุ๊กมาร์ค">
+                        <i class="fa-regular fa-bookmark" id="bookmarkMsgIcon"></i>
+                    </button>
+                    <button id="shareMsgBtn" class="action-btn" title="แชร์">
+                        <i class="fa-solid fa-share-nodes"></i>
+                    </button>
+                    <button id="likeBtn" class="action-btn like-btn">
+                        <i class="fa-regular fa-heart" id="likeIcon"></i>
+                        <span id="likeCount">0</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ GALLERY MODAL ============ -->
+    <div id="galleryModal" class="modal-overlay hidden-modal">
+        <div class="modal-card glass-card gallery-modal-card">
+            <div class="gallery-header">
+                <div class="gallery-title-row">
+                    <div class="gallery-title">
+                        <i class="fa-solid fa-book-open"></i>
+                        <h2>คลังข้อความในสายฝน</h2>
+                    </div>
+                    <button id="closeGalleryBtn" class="modal-close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+
+                <!-- Search & Filter -->
+                <div class="gallery-controls">
+                    <div class="search-box">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="gallerySearch" placeholder="ค้นหาข้อความ...">
+                    </div>
+                    <div class="filter-tabs" id="filterTabs">
+                        <button class="filter-tab active" data-filter="all">ทั้งหมด</button>
+                        <button class="filter-tab" data-filter="bookmarked"><i class="fa-solid fa-bookmark"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="galleryList" class="gallery-list"></div>
+
+            <div class="gallery-footer">
+                <button id="exportBtn" class="export-btn">
+                    <i class="fa-solid fa-download"></i> ส่งออกทั้งหมด
+                </button>
+                <span class="gallery-footer-text">
+                    <i class="fa-solid fa-umbrella"></i> ร่มคันนี้จะปกป้องหัวใจคุณเสมอ
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ STATS MODAL ============ -->
+    <div id="statsModal" class="modal-overlay hidden-modal">
+        <div class="modal-card glass-card stats-modal-card">
+            <div class="stats-header">
+                <div class="stats-title">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <h2>สถิติอารมณ์ของฉัน</h2>
+                </div>
+                <button id="closeStatsBtn" class="modal-close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="stats-body">
+                <!-- Summary Cards -->
+                <div class="stats-summary">
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalMessages">0</div>
+                        <div class="stat-label">ข้อความทั้งหมด</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalLikes">0</div>
+                        <div class="stat-label">กำลังใจ</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalBookmarks">0</div>
+                        <div class="stat-label">บุ๊กมาร์ค</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="currentStreak">0</div>
+                        <div class="stat-label">วันต่อเนื่อง</div>
+                    </div>
+                </div>
+
+                <!-- Mood Breakdown -->
+                <div class="mood-chart-section">
+                    <h3>อารมณ์ที่บันทึก</h3>
+                    <div class="mood-bars" id="moodBars"></div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="activity-section">
+                    <h3>กิจกรรม 7 วันล่าสุด</h3>
+                    <div class="activity-grid" id="activityGrid"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ SHARE MODAL ============ -->
+    <div id="shareModal" class="modal-overlay hidden-modal">
+        <div class="modal-card glass-card share-modal-card">
+            <button id="closeShareBtn" class="modal-close"><i class="fa-solid fa-xmark"></i></button>
+            <div class="share-header">
+                <i class="fa-solid fa-share-nodes"></i>
+                <h3>แชร์ข้อความนี้</h3>
+            </div>
+            <div class="share-preview" id="sharePreview">
+                <div class="share-preview-inner">
+                    <div class="share-preview-brand">☂️ ถึงฉัน... ในวันที่ฝนตก</div>
+                    <p id="shareText" class="share-preview-text">"ข้อความ"</p>
+                    <div class="share-preview-mood" id="shareMood">🤍 กอดตัวเอง</div>
+                </div>
+            </div>
+            <div class="share-actions">
+                <button id="copyShareBtn" class="share-action-btn">
+                    <i class="fa-regular fa-copy"></i> คัดลอกข้อความ
+                </button>
+                <button id="downloadCardBtn" class="share-action-btn accent">
+                    <i class="fa-solid fa-image"></i> บันทึกเป็นรูป
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
