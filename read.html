@@ -13,6 +13,10 @@
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
+    <!-- Firebase SDK (Realtime Sync) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
     <link rel="stylesheet" href="style.css">
 </head>
 <body id="appBody" class="read-only-mode">
@@ -39,6 +43,12 @@
             </div>
 
             <div class="header-right">
+                <!-- Sync Badge -->
+                <div class="sync-badge" id="syncBadge" title="สถานะการซิงค์ข้อมูลข้ามเครื่อง">
+                    <span class="sync-dot"></span>
+                    <span class="sync-text" id="syncText">ซิงค์ออนไลน์</span>
+                </div>
+
                 <!-- Streak -->
                 <div class="streak-badge" id="streakBadge" title="จำนวนวันที่เขียนต่อเนื่อง">
                     <i class="fa-solid fa-fire"></i>

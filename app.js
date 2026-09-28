@@ -88,6 +88,95 @@
         };
     }
 
+    /* ─── FIREBASE REALTIME SYNC ─── */
+    const firebaseConfig = {
+        apiKey: "AIzaSyB_DemoKeyRainyDayJournal2026",
+        authDomain: "rainyday-journal-default-rtdb.firebaseapp.com",
+        databaseURL: "https://rainyday-journal-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "rainyday-journal-default-rtdb",
+        storageBucket: "rainyday-journal-default-rtdb.appspot.com",
+        messagingSenderId: "100000000000",
+        appId: "1:100000000000:web:demo1234567890"
+    };
+
+    let db = null;
+    let isInitialFirebaseLoad = true;
+
+    function initFirebaseSync() {
+        const syncBadge = document.getElementById('syncBadge');
+        const syncText = document.getElementById('syncText');
+
+        function setSyncUI(online, label) {
+            if (syncBadge) syncBadge.classList.toggle('offline', !online);
+            if (syncText) syncText.textContent = label || (online ? 'ซิงค์เรียลไทม์ออนไลน์' : 'ออฟไลน์ (โหมดในเครื่อง)');
+        }
+
+        if (typeof firebase !== 'undefined' && firebase.database) {
+            try {
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+                db = firebase.database();
+
+                // Monitor connection status
+                db.ref('.info/connected').on('value', snap => {
+                    if (snap.val() === true) {
+                        setSyncUI(true, 'ซิงค์เรียลไทม์ออนไลน์ 🟢');
+                    } else {
+                        setSyncUI(false, 'ออฟไลน์ (ในเครื่อง)');
+                    }
+                });
+
+                // Listen for real-time messages added from ANY device
+                const messagesRef = db.ref('rain_messages');
+                messagesRef.limitToLast(100).on('child_added', snapshot => {
+                    const msgData = snapshot.val();
+                    if (!msgData || !msgData.id || !msgData.text) return;
+
+                    const exists = state.messages.some(m => m.id === msgData.id);
+                    if (!exists) {
+                        state.messages.unshift(msgData);
+                        saveState();
+                        createFallingMessage(msgData);
+                        if (typeof updateGalleryBadge === 'function') updateGalleryBadge();
+                        if (!isInitialFirebaseLoad) {
+                            showToast('☁️ ได้รับข้อความใหม่ลอยมาจากอีกเครื่องแล้ว!');
+                        }
+                    }
+                });
+
+                setTimeout(() => { isInitialFirebaseLoad = false; }, 2500);
+
+                // Listen for real-time likes/bookmark updates
+                messagesRef.on('child_changed', snapshot => {
+                    const msgData = snapshot.val();
+                    if (!msgData || !msgData.id) return;
+                    const item = state.messages.find(m => m.id === msgData.id);
+                    if (item) {
+                        item.likes = msgData.likes;
+                        item.bookmarked = msgData.bookmarked;
+                        saveState();
+                    }
+                });
+
+                // Listen for message deletion across devices
+                messagesRef.on('child_removed', snapshot => {
+                    const msgData = snapshot.val();
+                    if (!msgData || !msgData.id) return;
+                    state.messages = state.messages.filter(m => m.id !== msgData.id);
+                    saveState();
+                    if (typeof updateGalleryBadge === 'function') updateGalleryBadge();
+                });
+
+            } catch (err) {
+                console.warn('Firebase init error:', err);
+                setSyncUI(false, 'ออฟไลน์ (โหมดในเครื่อง)');
+            }
+        } else {
+            setSyncUI(false, 'ออฟไลน์ (โหมดในเครื่อง)');
+        }
+    }
+
     function saveState() {
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -513,6 +602,12 @@
             document.getElementById('likeCount').textContent = currentActiveItem.likes;
             saveState();
 
+            if (db) {
+                try {
+                    db.ref('rain_messages/' + currentActiveItem.id + '/likes').set(currentActiveItem.likes);
+                } catch (e) { console.warn(e); }
+            }
+
             // Animate
             icon.style.transform = 'scale(1.3)';
             setTimeout(() => icon.style.transform = 'scale(1)', 200);
@@ -525,6 +620,13 @@
         currentActiveItem.bookmarked = !currentActiveItem.bookmarked;
         document.getElementById('bookmarkMsgIcon').className = currentActiveItem.bookmarked ? 'fa-solid fa-bookmark' : 'fa-regular fa-bookmark';
         saveState();
+
+        if (db) {
+            try {
+                db.ref('rain_messages/' + currentActiveItem.id + '/bookmarked').set(currentActiveItem.bookmarked);
+            } catch (e) { console.warn(e); }
+        }
+
         showToast(currentActiveItem.bookmarked ? 'บุ๊กมาร์คแล้ว 📌' : 'ยกเลิกบุ๊กมาร์ค');
     });
 
@@ -650,6 +752,12 @@
 
             saveState();
 
+            if (db) {
+                try {
+                    db.ref('rain_messages/' + newMsg.id).set(newMsg);
+                } catch (e) { console.warn('Firebase set error:', e); }
+            }
+
             messageInput.value = '';
             if (charCount) charCount.textContent = '0 / 200';
             isBookmarkNew = false;
@@ -728,6 +836,11 @@
                     const id = e.target.closest('.gallery-delete-btn').dataset.id;
                     state.messages = state.messages.filter(m => m.id !== id);
                     saveState();
+                    if (db) {
+                        try {
+                            db.ref('rain_messages/' + id).remove();
+                        } catch (err) { console.warn('Firebase remove error:', err); }
+                    }
                     updateGalleryBadge();
                     renderGallery();
                     showToast('ลบข้อความแล้ว');
@@ -887,7 +1000,11 @@
         }
     });
 
+    /* ─── INITIALIZE FIREBASE SYNC ─── */
+    initFirebaseSync();
+
     /* ─── PERIODIC SAVE ─── */
     setInterval(saveState, 30000);
 
 })();
+
