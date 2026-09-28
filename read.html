@@ -13,10 +13,6 @@
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
-    <!-- Firebase SDK (Realtime Sync) -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
-
     <link rel="stylesheet" href="style.css">
 </head>
 <body id="appBody" class="read-only-mode">
@@ -44,9 +40,9 @@
 
             <div class="header-right">
                 <!-- Sync Badge -->
-                <div class="sync-badge" id="syncBadge" title="สถานะการซิงค์ข้อมูลข้ามเครื่อง">
+                <div class="sync-badge" id="syncBadge" title="สถานะการซิงค์ข้อมูลกับ Google Sheets">
                     <span class="sync-dot"></span>
-                    <span class="sync-text" id="syncText">ซิงค์ออนไลน์</span>
+                    <span class="sync-text" id="syncText">Google Sheets 📊</span>
                 </div>
 
                 <!-- Streak -->
@@ -87,16 +83,7 @@
         </div>
     </header>
 
-    <!-- ============ DAILY AFFIRMATION BANNER ============ -->
-    <div class="affirmation-banner" id="affirmationBanner">
-        <div class="affirmation-inner">
-            <i class="fa-solid fa-quote-left affirmation-icon"></i>
-            <p class="affirmation-text" id="affirmationText">ทุกวันมีเมฆ แต่ไม่ใช่ทุกวันที่ฝนตก</p>
-            <button class="affirmation-refresh" id="refreshAffirmation" title="เปลี่ยนคำคม">
-                <i class="fa-solid fa-arrows-rotate"></i>
-            </button>
-        </div>
-    </div>
+
 
     <!-- ============ FALLING RAIN MESSAGES AREA ============ -->
     <main id="rainContainer" class="rain-container"></main>

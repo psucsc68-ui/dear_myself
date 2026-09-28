@@ -88,92 +88,113 @@
         };
     }
 
-    /* ─── FIREBASE REALTIME SYNC ─── */
-    const firebaseConfig = {
-        apiKey: "AIzaSyB_DemoKeyRainyDayJournal2026",
-        authDomain: "rainyday-journal-default-rtdb.firebaseapp.com",
-        databaseURL: "https://rainyday-journal-default-rtdb.asia-southeast1.firebasedatabase.app",
-        projectId: "rainyday-journal-default-rtdb",
-        storageBucket: "rainyday-journal-default-rtdb.appspot.com",
-        messagingSenderId: "100000000000",
-        appId: "1:100000000000:web:demo1234567890"
-    };
+    /* ─── GOOGLE SHEETS REALTIME SYNC ─── */
+    const GOOGLE_SHEET_ID = '1zFp9t0Z9XGcTPjP6C1hSFtDa7Yy0azUNckAwMPSSits';
+    
+    // Web App URL จาก Google Apps Script
+    let GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyf7jlqGEhKJx2We_eMhhfdCIwoTc3xWzlVi04uYXhIQ85lLJeMXOP8W2PrsOsm_Osd3A/exec';
 
-    let db = null;
-    let isInitialFirebaseLoad = true;
+    let isInitialSheetLoad = true;
 
-    function initFirebaseSync() {
+    function setSyncStatusUI(online, label) {
         const syncBadge = document.getElementById('syncBadge');
         const syncText = document.getElementById('syncText');
+        if (syncBadge) syncBadge.classList.toggle('offline', !online);
+        if (syncText) syncText.textContent = label || (online ? 'Google Sheets 🟢' : 'ออฟไลน์ (ในเครื่อง)');
+    }
 
-        function setSyncUI(online, label) {
-            if (syncBadge) syncBadge.classList.toggle('offline', !online);
-            if (syncText) syncText.textContent = label || (online ? 'ซิงค์เรียลไทม์ออนไลน์' : 'ออฟไลน์ (โหมดในเครื่อง)');
+    async function syncFromGoogleSheet() {
+        if (!GOOGLE_SHEET_ID && !GOOGLE_SCRIPT_URL) return;
+
+        let fetchedMessages = [];
+        let success = false;
+
+        // 1. ลองดึงข้อมูลจาก Web App URL ก่อน
+        if (GOOGLE_SCRIPT_URL) {
+            try {
+                const res = await fetch(GOOGLE_SCRIPT_URL);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.messages) {
+                        fetchedMessages = data.messages;
+                        success = true;
+                    }
+                }
+            } catch (e) {
+                console.warn('Apps Script URL fetch failed, falling back to GViz:', e);
+            }
         }
 
-        if (typeof firebase !== 'undefined' && firebase.database) {
+        // 2. หากล้มเหลว ให้ใช้ GViz JSON Endpoint ดึงจาก Sheet โดยตรง
+        if (!success && GOOGLE_SHEET_ID) {
             try {
-                if (!firebase.apps.length) {
-                    firebase.initializeApp(firebaseConfig);
-                }
-                db = firebase.database();
+                const url = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:json`;
+                const res = await fetch(url);
+                if (res.ok) {
+                    const text = await res.text();
+                    const jsonString = text.replace(/^[\s\S]*?google\.visualization\.Query\.setResponse\(/, '').replace(/\);?\s*$/, '');
+                    const parsed = JSON.parse(jsonString);
+                    if (parsed && parsed.table && parsed.table.rows) {
+                        parsed.table.rows.forEach(r => {
+                            if (!r.c) return;
+                            const id = r.c[0] ? String(r.c[0].v || '') : null;
+                            const msgText = r.c[1] ? String(r.c[1].v || '') : null;
+                            if (!msgText || id === 'id' || id === 'ID') return;
 
-                // Monitor connection status
-                db.ref('.info/connected').on('value', snap => {
-                    if (snap.val() === true) {
-                        setSyncUI(true, 'ซิงค์เรียลไทม์ออนไลน์ 🟢');
-                    } else {
-                        setSyncUI(false, 'ออฟไลน์ (ในเครื่อง)');
+                            const mood = r.c[2] ? String(r.c[2].v || 'hug') : 'hug';
+                            const likes = r.c[3] ? Number(r.c[3].v || 0) : 0;
+                            const bookmarked = r.c[4] ? (r.c[4].v === true || String(r.c[4].v).toLowerCase() === 'true') : false;
+                            const timeStr = r.c[5] ? String(r.c[5].v || '') : '';
+                            const timestamp = r.c[6] ? Number(r.c[6].v || Date.now()) : Date.now();
+
+                            fetchedMessages.push({ id, text: msgText, mood, likes, bookmarked, time: timeStr, timestamp });
+                        });
+                        success = true;
                     }
-                });
+                }
+            } catch (err) {
+                console.warn('GViz fetch error:', err);
+            }
+        }
 
-                // Listen for real-time messages added from ANY device
-                const messagesRef = db.ref('rain_messages');
-                messagesRef.limitToLast(100).on('child_added', snapshot => {
-                    const msgData = snapshot.val();
-                    if (!msgData || !msgData.id || !msgData.text) return;
-
-                    const exists = state.messages.some(m => m.id === msgData.id);
+        if (success) {
+            setSyncStatusUI(true, 'Google Sheets 🟢');
+            if (fetchedMessages.length > 0) {
+                let hasNew = false;
+                fetchedMessages.forEach(msg => {
+                    const exists = state.messages.some(m => m.id === msg.id);
                     if (!exists) {
-                        state.messages.unshift(msgData);
-                        saveState();
-                        createFallingMessage(msgData);
-                        if (typeof updateGalleryBadge === 'function') updateGalleryBadge();
-                        if (!isInitialFirebaseLoad) {
-                            showToast('☁️ ได้รับข้อความใหม่ลอยมาจากอีกเครื่องแล้ว!');
+                        state.messages.unshift(msg);
+                        createFallingMessage(msg);
+                        hasNew = true;
+                    } else {
+                        const item = state.messages.find(m => m.id === msg.id);
+                        if (item) {
+                            item.likes = Math.max(item.likes || 0, msg.likes || 0);
+                            item.bookmarked = item.bookmarked || msg.bookmarked;
                         }
                     }
                 });
 
-                setTimeout(() => { isInitialFirebaseLoad = false; }, 2500);
-
-                // Listen for real-time likes/bookmark updates
-                messagesRef.on('child_changed', snapshot => {
-                    const msgData = snapshot.val();
-                    if (!msgData || !msgData.id) return;
-                    const item = state.messages.find(m => m.id === msgData.id);
-                    if (item) {
-                        item.likes = msgData.likes;
-                        item.bookmarked = msgData.bookmarked;
-                        saveState();
-                    }
-                });
-
-                // Listen for message deletion across devices
-                messagesRef.on('child_removed', snapshot => {
-                    const msgData = snapshot.val();
-                    if (!msgData || !msgData.id) return;
-                    state.messages = state.messages.filter(m => m.id !== msgData.id);
-                    saveState();
-                    if (typeof updateGalleryBadge === 'function') updateGalleryBadge();
-                });
-
-            } catch (err) {
-                console.warn('Firebase init error:', err);
-                setSyncUI(false, 'ออฟไลน์ (โหมดในเครื่อง)');
+                saveState();
+                if (typeof updateGalleryBadge === 'function') updateGalleryBadge();
+                if (hasNew && !isInitialSheetLoad) {
+                    showToast('☁️ มีข้อความใหม่จาก Google Sheets!');
+                }
             }
+            isInitialSheetLoad = false;
         } else {
-            setSyncUI(false, 'ออฟไลน์ (โหมดในเครื่อง)');
+            setSyncStatusUI(false, 'ออฟไลน์ (ในเครื่อง)');
+        }
+    }
+
+    function sendToGoogleSheet(action, data) {
+        if (!GOOGLE_SCRIPT_URL) return;
+        try {
+            const params = new URLSearchParams({ action, ...data });
+            fetch(`${GOOGLE_SCRIPT_URL}?${params.toString()}`, { mode: 'no-cors' });
+        } catch (e) {
+            console.warn('Google Sheets send error:', e);
         }
     }
 
@@ -602,11 +623,7 @@
             document.getElementById('likeCount').textContent = currentActiveItem.likes;
             saveState();
 
-            if (db) {
-                try {
-                    db.ref('rain_messages/' + currentActiveItem.id + '/likes').set(currentActiveItem.likes);
-                } catch (e) { console.warn(e); }
-            }
+            sendToGoogleSheet('like', { id: currentActiveItem.id, likes: currentActiveItem.likes });
 
             // Animate
             icon.style.transform = 'scale(1.3)';
@@ -621,11 +638,7 @@
         document.getElementById('bookmarkMsgIcon').className = currentActiveItem.bookmarked ? 'fa-solid fa-bookmark' : 'fa-regular fa-bookmark';
         saveState();
 
-        if (db) {
-            try {
-                db.ref('rain_messages/' + currentActiveItem.id + '/bookmarked').set(currentActiveItem.bookmarked);
-            } catch (e) { console.warn(e); }
-        }
+        sendToGoogleSheet('bookmark', { id: currentActiveItem.id, bookmarked: currentActiveItem.bookmarked });
 
         showToast(currentActiveItem.bookmarked ? 'บุ๊กมาร์คแล้ว 📌' : 'ยกเลิกบุ๊กมาร์ค');
     });
@@ -752,11 +765,7 @@
 
             saveState();
 
-            if (db) {
-                try {
-                    db.ref('rain_messages/' + newMsg.id).set(newMsg);
-                } catch (e) { console.warn('Firebase set error:', e); }
-            }
+            sendToGoogleSheet('add', newMsg);
 
             messageInput.value = '';
             if (charCount) charCount.textContent = '0 / 200';
@@ -836,11 +845,7 @@
                     const id = e.target.closest('.gallery-delete-btn').dataset.id;
                     state.messages = state.messages.filter(m => m.id !== id);
                     saveState();
-                    if (db) {
-                        try {
-                            db.ref('rain_messages/' + id).remove();
-                        } catch (err) { console.warn('Firebase remove error:', err); }
-                    }
+                    sendToGoogleSheet('delete', { id });
                     updateGalleryBadge();
                     renderGallery();
                     showToast('ลบข้อความแล้ว');
@@ -1000,8 +1005,9 @@
         }
     });
 
-    /* ─── INITIALIZE FIREBASE SYNC ─── */
-    initFirebaseSync();
+    /* ─── INITIALIZE GOOGLE SHEETS SYNC ─── */
+    syncFromGoogleSheet();
+    setInterval(syncFromGoogleSheet, 4000);
 
     /* ─── PERIODIC SAVE ─── */
     setInterval(saveState, 30000);
